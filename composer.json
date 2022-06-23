@@ -1,0 +1,21 @@
+{
+  "name": "ulv/phpch",
+  "description": "PHP ClickHouse HTTP client",
+  "license": "MIT",
+  "type": "library",
+  "authors": [
+    {
+      "name": "Ulv",
+      "email": "ulv8888@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Ulv\\Phpch\\": "src/"
+    }
+  }
+}

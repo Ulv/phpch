@@ -16,23 +16,23 @@ class Client
 
     private array $connectionOptions = [
         'database'                      => 'default',
-        'default_format'                => 'JSONCompact', // TSV, Native
+        'default_format'                => 'JSONEachRow', // TSV, Native
         'enable_http_compression'       => 1,
-        'max_result_rows'               => 10000,
-        'max_result_bytes'              => 10000000,
-        'buffer_size'                   => 10,
-        'wait_end_of_query'             => 1,
+        //        'max_result_rows'               => 10000,
+        //        'max_result_bytes'              => 10000000,
+        'buffer_size'                   => 65535,
+        //        'wait_end_of_query'             => 1,
         'send_progress_in_http_headers' => 1,
-        'result_overflow_mode'          => 'break',
+        //        'result_overflow_mode'          => 'break',
     ];
 
     private string $user = '';
 
     private string $password = '';
 
-    private string $query;
-
     private $socket;
+
+    private HttpMessage $httpMessage;
 
     public function __construct(array $parameters = [])
     {
@@ -64,28 +64,30 @@ class Client
 
     public function query(string $query): self
     {
-        $this->query = $query;
-
-        $request = 'POST /?' . http_build_query($this->connectionOptions) . ' HTTP/1.1' . "\r\n";
-        $request .= 'Host: ' . $this->connection['host'] . ':' . $this->connection['port'] . "\r\n";
-//        $request .= 'Accept-Encoding: gzip, deflate, br' . "\r\n";
-        $request .= 'Accept-Language: en-GB,en-US;q=0.9,en;q=0.8' . "\r\n";
-        $request .= 'Connection: keep-alive' . "\r\n";
-        $request .= 'Content-Type: application/x-www-form-urlencoded' . "\r\n";
-        $request .= 'X-Clickhouse-User: ' . $this->user . "\r\n";
-        $request .= 'X-Clickhouse-Key: ' . $this->password . "\r\n";
-        $request .= 'Content-Length: ' . strlen($this->query) . "\r\n";
-        $request .= "Connection: Close\r\n\r\n";
-        $request .= $this->query;
-
-        fwrite($this->socket, $request);
+        $this->httpMessage = new HttpMessage(
+            $this->connection['host'],
+            $this->connection['port'],
+            HttpMessage::POST,
+            [
+//                'Accept-Encoding: gzip, deflate, br',
+'Accept-Language: en-GB,en-US,q=0.9,en,q=0.8',
+'Connection: keep-alive',
+'Content-Type: application/x-www-form-urlencoded',
+'X-Clickhouse-User: ' . $this->user,
+'X-Clickhouse-Key: ' . $this->password,
+            ],
+            http_build_query($this->connectionOptions),
+            $query
+        );
 
         return $this;
     }
 
     public function cursor()
     {
-        while (($line = stream_get_line($this->socket, 4096)) !== false) {
+        fwrite($this->socket, $this->httpMessage);
+
+        while (($line = fgets($this->socket, 65535)) !== false) {
             yield $line;
         }
     }

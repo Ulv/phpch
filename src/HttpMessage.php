@@ -31,4 +31,9 @@ class HttpMessage
     {
         return $this->message;
     }
+
+    public function length(): int
+    {
+        return strlen($this->message);
+    }
 }

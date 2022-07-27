@@ -8,6 +8,8 @@ namespace Ulv\Phpch;
  */
 class Client
 {
+    protected const READ_BYTES = 65535;
+
     private array $connection = [
         'scheme' => 'http',
         'host'   => 'localhost',
@@ -16,13 +18,16 @@ class Client
 
     private array $connectionOptions = [
         'database'                      => 'default',
-        'default_format'                => 'JSONEachRow', // TSV, Native
-        'enable_http_compression'       => 1,
+        //        'compress' => 1,
+        //        'network_compression_method'    => 'ZSTD',
+        'default_format'                => 'JSONEachRow',
+        //                'enable_http_compression'       => 1,
         //        'max_result_rows'               => 10000,
         //        'max_result_bytes'              => 10000000,
-        'buffer_size'                   => 65535,
-        //        'wait_end_of_query'             => 1,
+        'buffer_size'                   => 4096,
+        'wait_end_of_query'             => 1,
         'send_progress_in_http_headers' => 1,
+        //        'output_format_enable_streaming' => 1,
         //        'result_overflow_mode'          => 'break',
     ];
 
@@ -34,7 +39,15 @@ class Client
 
     private HttpMessage $httpMessage;
 
-    public function __construct(array $parameters = [])
+    private ResponseParserInterface $responseParser;
+
+    private array $summary = [];
+
+    private array $progress = [];
+
+    private array $responseHeaders = [];
+
+    public function __construct(array $parameters = [], ResponseParserInterface $responseParser = null)
     {
         if ($parameters) {
             foreach ($parameters as $key => $value) {
@@ -50,9 +63,12 @@ class Client
         }
 
         $this->socket = fsockopen($this->connection['host'], $this->connection['port'], $errorCode, $errorMessage);
+
         if (!$this->socket) {
             throw new ClientException($errorMessage, $errorCode);
         }
+
+        $this->responseParser = $responseParser ?? new JSONEachRowStreamResponseParser();
     }
 
     public function __destruct()
@@ -83,12 +99,49 @@ class Client
         return $this;
     }
 
-    public function cursor()
+    public function stream()
     {
-        fwrite($this->socket, $this->httpMessage);
+        fwrite($this->socket, $this->httpMessage, $this->httpMessage->length());
 
-        while (($line = fgets($this->socket, 65535)) !== false) {
-            yield $line;
+        $processingBodyStarted = false;
+        while (($line = stream_get_line($this->socket, self::READ_BYTES, "\r\n")) !== false) {
+            if (empty($line)) {
+                // split headers from data
+                $processingBodyStarted = true;
+                continue;
+            } elseif (!$processingBodyStarted) {
+                $this->responseHeaders[] = $line;
+
+                if (strpos($line, 'X-ClickHouse-Exception') !== false) {
+                    // todo: parse clickhouse exception
+                    [$_, $exceptionCode] = explode(': ', $line, 2);
+                    throw new ServerException($line, $exceptionCode);
+                } elseif (strpos($line, 'X-ClickHouse-Summary') !== false) {
+                    [$_, $summary] = explode(': ', $line, 2);
+                    $this->summary = json_decode($summary, true, 2);
+                } elseif (strpos($line, 'X-ClickHouse-Progress') !== false) {
+                    [$_, $progress] = explode(': ', $line, 2);
+                    $this->progress = json_decode($progress, true, 2);
+                }
+            }
+
+            if ($processingBodyStarted) {
+                // skip line with chunk size & get data
+                $dataLine = stream_get_line($this->socket, self::READ_BYTES, "\r\n");
+                $this->responseParser->add($dataLine);
+
+                yield from $this->responseParser->row();
+            }
         }
+    }
+
+    public function progress(): array
+    {
+        return $this->progress;
+    }
+
+    public function summary(): array
+    {
+        return $this->summary;
     }
 }

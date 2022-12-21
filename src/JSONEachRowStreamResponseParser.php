@@ -2,7 +2,6 @@
 
 namespace Ulv\Phpch;
 
-use ArrayIterator;
 use Generator;
 
 /**
@@ -10,25 +9,27 @@ use Generator;
  */
 class JSONEachRowStreamResponseParser implements ResponseParserInterface
 {
-    protected array $rows = [];
+    private array $validRows = [];
 
-    protected array $partialRows = [];
+    private string $incompleteRow = '';
 
-    public function add(string $dataLine): ResponseParserInterface
+    /**
+     * @throws \JsonException
+     */
+    public function add(string $block): ResponseParserInterface
     {
-        if ($dataLine) {
-            if (strpos($dataLine, "\n") !== false) {
-                $rows = explode("\n", $dataLine);
+        $rows         = explode("\n", $block);
+        $lastRowIndex = array_key_last($rows);
 
-                foreach ($rows as $row) {
-                    if ($decoded = json_decode($row, true, JSON_THROW_ON_ERROR)) {
-                        $this->rows[] = $decoded;
-                    } else {
-                        $this->partialRows[] = $row;
-                    }
+        foreach ($rows as $i => $row) {
+            if ($this->isValidJson($row)) {
+                $this->validRows[] = json_decode($row, true, 512, JSON_THROW_ON_ERROR);
+            } elseif ($i === 0 || $i === $lastRowIndex) {
+                $this->incompleteRow .= $row;
+                if ($this->isValidJson($this->incompleteRow)) {
+                    $this->validRows[]   = json_decode($this->incompleteRow, true, 512, JSON_THROW_ON_ERROR);
+                    $this->incompleteRow = '';
                 }
-            } else {
-                $this->partialRows[] = $dataLine;
             }
         }
 
@@ -37,6 +38,14 @@ class JSONEachRowStreamResponseParser implements ResponseParserInterface
 
     public function row(): Generator
     {
-        yield from $this->rows;
+        foreach ($this->validRows as $row) {
+            yield $row;
+        }
+        $this->validRows = [];
+    }
+
+    private function isValidJson(string $string): bool
+    {
+        return json_decode($string) !== null && json_last_error() === JSON_ERROR_NONE;
     }
 }

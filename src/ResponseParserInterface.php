@@ -10,7 +10,7 @@ use Generator;
  */
 interface ResponseParserInterface
 {
-    public function add(string $dataLine) : self;
+    public function add(string $block) : self;
 
     public function row(): Generator;
 }

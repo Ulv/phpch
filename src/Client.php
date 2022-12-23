@@ -25,10 +25,10 @@ class Client
         //        'max_result_rows'               => 10000,
         //        'max_result_bytes'              => 10000000,
         'buffer_size'                   => 4096,
-        'wait_end_of_query'             => 1,
+        'wait_end_of_query'             => 0,
         'send_progress_in_http_headers' => 1,
-        //        'output_format_enable_streaming' => 1,
-        //        'result_overflow_mode'          => 'break',
+                'output_format_enable_streaming' => 1,
+                'result_overflow_mode'          => 'break',
     ];
 
     private string $user = '';
@@ -40,12 +40,6 @@ class Client
     private HttpMessage $httpMessage;
 
     private ResponseParserInterface $responseParser;
-
-    private array $summary = [];
-
-    private array $progress = [];
-
-    private array $responseHeaders = [];
 
     public function __construct(array $parameters = [], ResponseParserInterface $responseParser = null)
     {
@@ -106,42 +100,16 @@ class Client
         $processingBodyStarted = false;
         while (($line = stream_get_line($this->socket, self::READ_BYTES, "\r\n")) !== false) {
             if (empty($line)) {
-                // split headers from data
+                // headers / data delimiter
                 $processingBodyStarted = true;
-                continue;
-            } elseif (!$processingBodyStarted) {
-                $this->responseHeaders[] = $line;
-
-                if (strpos($line, 'X-ClickHouse-Exception') !== false) {
+            } elseif (!$processingBodyStarted && strpos($line, 'X-ClickHouse-Exception') !== false) {
                     // todo: parse clickhouse exception
                     [$_, $exceptionCode] = explode(': ', $line, 2);
-                    throw new ServerException($line, $exceptionCode);
-                } elseif (strpos($line, 'X-ClickHouse-Summary') !== false) {
-                    [$_, $summary] = explode(': ', $line, 2);
-                    $this->summary = json_decode($summary, true, 2);
-                } elseif (strpos($line, 'X-ClickHouse-Progress') !== false) {
-                    [$_, $progress] = explode(': ', $line, 2);
-                    $this->progress = json_decode($progress, true, 2);
-                }
-            }
-
-            if ($processingBodyStarted) {
-                // skip line with chunk size & get data
-                $dataLine = stream_get_line($this->socket, self::READ_BYTES, "\r\n");
-                $this->responseParser->add($dataLine);
-
-                yield from $this->responseParser->row();
+                    throw new ServerException('', $exceptionCode);
+            } elseif ($processingBodyStarted) {
+                $block = stream_get_line($this->socket, self::READ_BYTES, "\r\n");
+                yield from $this->responseParser->add($block)->row();
             }
         }
-    }
-
-    public function progress(): array
-    {
-        return $this->progress;
-    }
-
-    public function summary(): array
-    {
-        return $this->summary;
     }
 }

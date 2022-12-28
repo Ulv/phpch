@@ -2,11 +2,14 @@
 
 namespace Ulv\Phpch;
 
+use RuntimeException;
+
 /**
  * Class ClientException
+ *
  * @package Ulv\Phpch
  */
-class ClientException extends \RuntimeException
+class ConnectionException extends RuntimeException
 {
 
 }

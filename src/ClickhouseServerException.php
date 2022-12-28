@@ -2,12 +2,13 @@
 
 namespace Ulv\Phpch;
 
+use RuntimeException;
 use Throwable;
 
 /**
  * @package Ulv\Phpch
  */
-class ServerException extends \RuntimeException
+class ClickhouseServerException extends RuntimeException
 {
     /**
      * @see https://github.com/ClickHouse/ClickHouse/blob/master/src/Common/ErrorCodes.cpp
@@ -650,7 +651,17 @@ class ServerException extends \RuntimeException
 
     public function __construct($message = "", $code = 0, Throwable $previous = null)
     {
-        $message = $message ?: $code . ': ' . (static::CH_SERVER_CODES[$code] ?? '');
-        parent::__construct($message, $code, $previous);
+        $exception = $this->parseRawException($message);
+        parent::__construct($exception['message'], $exception['code'], $previous);
+    }
+
+    private function parseRawException(string $message): array
+    {
+        [, $code] = explode(': ', $message, 2);
+
+        return [
+            'code'    => $code,
+            'message' => (static::CH_SERVER_CODES[$code] ?? '') . ' (' . $code . ')',
+        ];
     }
 }

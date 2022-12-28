@@ -1,6 +1,7 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Ulv\Phpch\JSONEachRowStreamResponseParser;
 
 /**
  * @package ${NAMESPACE}
@@ -21,7 +22,7 @@ class JSONEachRowStreamResponseParerTest extends TestCase
             $expectedResult[] = json_decode($item, true);
         }
 
-        $sut = new \Ulv\Phpch\JSONEachRowStreamResponseParser();
+        $sut = new JSONEachRowStreamResponseParser();
         $sut->add($rows);
 
         $actualResult = iterator_to_array($sut->row());
@@ -50,7 +51,7 @@ class JSONEachRowStreamResponseParerTest extends TestCase
             json_decode('{"date":"2022-04-01","user_id":"577298495535","device_id":"","name":"98pct_map"}', true),
         ];
 
-        $sut = new \Ulv\Phpch\JSONEachRowStreamResponseParser();
+        $sut = new JSONEachRowStreamResponseParser();
         $sut->add($rowsBlock1);
         $sut->add($rowsBlock2);
 
@@ -82,7 +83,7 @@ class JSONEachRowStreamResponseParerTest extends TestCase
             json_decode('{"date":"2022-04-01","user_id":"577298495535","device_id":"","name":"98pct_map"}', true),
         ];
 
-        $sut = new \Ulv\Phpch\JSONEachRowStreamResponseParser();
+        $sut = new JSONEachRowStreamResponseParser();
         $sut->add($rowsBlock1);
         $sut->add($rowsBlock2);
         $sut->add($rowsBlock3);
@@ -107,7 +108,7 @@ class JSONEachRowStreamResponseParerTest extends TestCase
             json_decode('{"date":"2022-04-01","user_id":"513942215025","device_id":"","name":"game_tournament_round_finish","user":"{\"referrer.cm.ad_referrer\":[],\"referrer.cm.install_id\":\"568541006131\",\"referrer.cm.install\":\"passive_friend_invitation\",\"referrer.cm.visit\":\"rb_9\",\"referrer.cm.visit_id\":\"\",\"login_count.cm\":7479,\"game_data.level\":1861,\"game_data.consumables.coins_scale\":1,\"game_data.twins_shown\":0,\"game_data.episode\":124,\"game_data.pictures_shown\":54001,\"split.cm.current.27062287bd7175b1f5d5308e478.group_id\":\"data1\",\"split.cm.current.27062287bd7175b1f5d5308e478.id\":\"27062287bd7175b1f5d5308e478\",\"return_time.cm\":0,\"login_time.cm\":1648756109,\"payments.cm.total.amount\":30,\"payments.cm.total.count\":1,\"register_time.cm\":1497207873,\"info.country\":\"RU\",\"info.gender\":\"female\",\"info.age\":73}"}', true),
         ];
 
-        $sut = new \Ulv\Phpch\JSONEachRowStreamResponseParser();
+        $sut = new JSONEachRowStreamResponseParser();
         $sut->add($rowsBlock1);
         $sut->add($rowsBlock2);
         $sut->add($rowsBlock3);
@@ -144,7 +145,7 @@ class JSONEachRowStreamResponseParerTest extends TestCase
             json_decode('{"date":"2022-04-01","user_id":"577298495535","device_id":"","name":"98pct_map"}', true),
         ];
 
-        $sut = new \Ulv\Phpch\JSONEachRowStreamResponseParser();
+        $sut = new JSONEachRowStreamResponseParser();
         $sut->add($rowsBlock1);
         $sut->add($rowsBlock2);
         $sut->add($rowsBlock3);
